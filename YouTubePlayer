@@ -1,0 +1,81 @@
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.List;
+import java.util.Scanner;
+
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.services.youtube.YouTube;
+import com.google.api.services.youtube.model.SearchResult;
+import com.google.api.services.youtube.model.SearchResultSnippet;
+import com.google.api.services.youtube.model.SearchResultListResponse;
+
+import javafx.application.Application;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
+import javafx.stage.Stage;
+
+public class YouTubePlayer extends Application {
+
+    // Set up the YouTube API client
+    private static final String APPLICATION_NAME = "YouTube Player";
+    private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+    private static final String DEVELOPER_KEY = "YOUR_API_KEY_HERE";
+    private static final long NUMBER_OF_VIDEOS_RETURNED = 1;
+    private static YouTube youtube;
+
+    // Set up the media player
+    private static MediaPlayer mediaPlayer;
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+
+    @Override
+    public void start(Stage primaryStage) throws Exception {
+        // Set up the YouTube API client
+        youtube = new YouTube.Builder(GoogleNetHttpTransport.newTrustedTransport(), JSON_FACTORY, null)
+                .setApplicationName(APPLICATION_NAME).build();
+
+        // Prompt the user for the song to play
+        System.out.print("Enter the song to play: ");
+        Scanner scanner = new Scanner(System.in);
+        String query = scanner.nextLine();
+
+        // Call the YouTube API's search method to search for the song
+        YouTube.Search.List search = youtube.search().list("id,snippet");
+        search.setKey(DEVELOPER_KEY);
+        search.setQ(query);
+        search.setType("video");
+        search.setFields("items(id/videoId,snippet/title)");
+        search.setMaxResults(NUMBER_OF_VIDEOS_RETURNED);
+        SearchResultListResponse searchResponse = search.execute();
+        List<SearchResult> searchResultList = searchResponse.getItems();
+
+        // Check if there were any search results
+        if (searchResultList.isEmpty()) {
+            System.out.println("No search results found.");
+            return;
+        }
+
+        // Get the first search result
+        SearchResult searchResult = searchResultList.get(0);
+        SearchResultSnippet snippet = searchResult.getSnippet();
+
+        // Create a YouTube video URL using the video ID
+        String videoId = searchResult.getId().getVideoId();
+        String videoUrl = "https://www.youtube.com/watch?v=" + videoId;
+        System.out.println("Playing: " + snippet.getTitle());
+
+        // Set up the media player to play the YouTube video
+        try {
+            Media media = new Media(new URL(videoUrl).toExternalForm());
+            mediaPlayer = new MediaPlayer(media);
+            mediaPlayer.play();
+        } catch (MalformedURLException e) {
+            System.err.println("Invalid URL: " + videoUrl);
+        }
+    }
+}
